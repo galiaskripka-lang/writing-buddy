@@ -20,7 +20,12 @@ app.use(express.json());
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', groq: !!process.env.GROQ_API_KEY, node: process.version });
+  res.json({
+    status: 'ok',
+    groq: !!process.env.GROQ_API_KEY,
+    hf: !!process.env.HF_API_KEY,
+    node: process.version,
+  });
 });
 
 // API routes
@@ -35,6 +40,13 @@ app.get('*', (req, res) => {
     res.sendFile(join(__dirname, '../client/dist/index.html'));
   }
 });
+
+const hfKey = process.env.HF_API_KEY;
+const hfMask = hfKey ? `${hfKey.slice(0, 4)}…${hfKey.slice(-4)} (len=${hfKey.length})` : 'MISSING';
+const hfRelated = Object.keys(process.env).filter(k => /hf|hugging/i.test(k));
+console.log(`[startup] HF_API_KEY: ${hfMask}`);
+console.log(`[startup] HF-related env keys found: ${hfRelated.join(', ') || '(none)'}`);
+console.log(`[startup] GROQ_API_KEY: ${process.env.GROQ_API_KEY ? 'set' : 'MISSING'}`);
 
 initDb()
   .then(() => {
