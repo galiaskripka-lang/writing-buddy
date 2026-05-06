@@ -51,7 +51,7 @@ async function callAI(messages, maxTokens = 1000, model = 'llama-3.1-8b-instant'
 // קיצור היסטוריית שיחה לפני שליחה ל-Groq
 // בעיה: שיחות ארוכות חורגות מ-12,000 TPM של הTier החינמי
 // פתרון: שמור 4 הודעות ראשונות (תכנון הסיפור) + 20 אחרונות, ומחק data: URLs ענקיות
-function trimHistory(history, maxMessages = 8, keepFirst = 2) {
+function trimHistory(history, maxMessages = 20, keepFirst = 2) {
   // מחק data: URLs מהודעות עם תמונות — הן ענקיות ולא נחוצות לצ'אט
   const clean = history.map(m => ({
     ...m,
@@ -151,16 +151,15 @@ router.post('/illustrate', async (req, res) => {
     const allUserContent = history.filter(m => m.role === 'user').map(m => m.content).join('\n');
     const storyMessages  = history.filter(m => m.role === 'user' && !toolKeywords.some(kw => m.content.includes(kw)));
     const lastStoryMsg   = storyMessages[storyMessages.length - 1]?.content || '';
-    const recentScene    = storyMessages.slice(-4).map(m => m.content).join('\n');
+    // תיקון: מסוף הסיפור (הטקסט העדכני ביותר), ללא חיתוך אגרסיבי
+    const recentScene    = storyMessages.slice(-6).map(m => m.content).join('\n').slice(-1500);
 
     // ─── שלב 1: Character Bible — תיאורי דמויות קבועים ─────────────────────────
     let characterAnchors = session.character_anchors || null;
 
-    const extractAnchors = async (text) => {
-      const res = await callAI([
-        {
-          role: 'system',
-          content: `You are a character designer for a children's illustrated book. Read the Hebrew story and create a permanent visual "ID card" for every named character.
+    const extractAnchors = async (text, existingAnchors) => {
+      const systemInstruction = `You are a character designer for a children's illustrated book.
+${existingAnchors ? \`Here is the EXISTING character bible:\\n\${existingAnchors}\\n\\nUpdate it if there are NEW named characters in the story. Keep existing characters exactly the same to maintain consistency.\` : 'Create a permanent visual "ID card" for every named character.'}
 
 RULES:
 1. List ONLY named characters (who have an explicit name in the text)
@@ -169,23 +168,22 @@ RULES:
    CHARACTER "[name romanized]": [age]-year-old [boy/girl/man/woman], [hair color and style], wearing [specific outfit with colors], [any unique features like glasses, freckles, wheelchair — or omit if none]
 4. CRITICAL: If a visual detail (hair color, clothing) is NOT mentioned in the story — you MUST INVENT a specific, consistent detail. Never write "not described" or "unspecified". Invent once, use forever.
 5. Be maximally specific: "shoulder-length wavy auburn hair" not "brown hair". "bright yellow raincoat and red rubber boots" not "jacket".
+6. Output English only.`;
 
-Example output:
-TOTAL_CHARACTERS: 2
-CHARACTER "Neta": 9-year-old girl, long straight red hair tied in a ponytail, wearing an orange t-shirt and denim shorts, carrying a metal detector
-CHARACTER "Yuli": 9-year-old girl, short curly dark brown hair, wearing a light blue dress with white dots, barefoot`
-        },
-        { role: 'user', content: `Hebrew story:\n${text.slice(0, 2000)}\n\nCreate the character bible:` }
-      ], 350, 'llama-3.1-8b-instant');
+      const res = await callAI([
+        { role: 'system', content: systemInstruction },
+        { role: 'user', content: \`Hebrew story:\\n\${text.slice(-6000)}\\n\\nCreate/Update the character bible:\` }
+      ], 450, 'llama-3.1-8b-instant');
       return res.trim().replace(/["""'']/g, '');
     };
 
-    if (!characterAnchors) {
-      characterAnchors = await extractAnchors(allUserContent);
+    const newAnchors = await extractAnchors(allUserContent, characterAnchors);
+    if (newAnchors !== characterAnchors && newAnchors.includes('CHARACTER "')) {
+      characterAnchors = newAnchors;
       await query('UPDATE sessions SET character_anchors = $1 WHERE id = $2', [characterAnchors, sessionId]);
-      console.log('[Illustrate] Character Bible saved:\n', characterAnchors);
+      console.log('[Illustrate] Character Bible updated/saved:\\n', characterAnchors);
     } else {
-      console.log('[Illustrate] Using saved Character Bible:\n', characterAnchors);
+      console.log('[Illustrate] Using existing Character Bible:\\n', characterAnchors);
     }
 
     const totalMatch = characterAnchors.match(/TOTAL_CHARACTERS:\s*(\d+)/i);
@@ -206,8 +204,8 @@ Include:
 
 Output English only.`
       },
-      { role: 'user', content: `"${recentScene.slice(0, 600)}"` }
-    ], 120, 'llama-3.1-8b-instant')).trim().replace(/["""'']/g, '');
+      { role: 'user', content: `"${recentScene.slice(-2000)}"` }
+    ], 150, 'llama-3.1-8b-instant')).trim().replace(/["""'']/g, '');
 
     console.log('[Illustrate] Scene (EN):', sceneEn);
 
@@ -364,8 +362,4 @@ Rules:
     res.json({ message: assistantMessage });
   } catch (err) {
     console.error('Illustrate error:', err.message);
-    res.status(500).json({ error: 'שגיאה ביצירת האיור. נסה שוב.' });
-  }
-});
-
-export default router;
+    res.status(500).json({ error: 'שגיאה �
