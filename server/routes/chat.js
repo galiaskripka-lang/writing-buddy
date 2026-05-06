@@ -206,7 +206,7 @@ running through a sunny park, excited wide smile, beneath a big oak tree at gold
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              inputs: fullImagePrompt.slice(0, 400),
+              inputs: fullImagePrompt.slice(0, 1000),
               parameters: {
                 num_inference_steps: 4,
                 guidance_scale: 0.0,
