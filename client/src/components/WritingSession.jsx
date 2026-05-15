@@ -25,16 +25,15 @@ const TOOL_MESSAGES = new Set([
   KICKOFF_MESSAGE,
 ]);
 
-// ספירת משפטים חכמה לעברית
+// ספירת משפטים — סוף משפט = נקודה או אנטר בלבד (לא פסיק / ! / ?)
 function countSentences(text) {
   if (!text || !text.trim()) return 0;
-  const segments = text.split(/[.!?]+\s*|\r?\n+/);
+  // מפצל רק לפי נקודה ושורה חדשה
+  const segments = text.split(/\.+|\r?\n+/);
   let count = 0;
   segments.forEach(seg => {
     const words = seg.trim().split(/\s+/).filter(w => w.length > 0);
-    if (words.length >= 2) {
-      count += Math.ceil(words.length / 15);
-    }
+    if (words.length >= 2) count += 1;
   });
   return count;
 }
@@ -88,6 +87,13 @@ export default function WritingSession({ user, token, onLogout }) {
 
   useEffect(() => { loadSession(); }, [id]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
+  // החזרת פוקוס לתיבת הטקסט בכל פעם שהטעינה מסתיימת
+  useEffect(() => {
+    if (!loading && session?.status === 'active') {
+      const timer = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   // =============================================
   // חישובים: רק הודעות הסיפור (לא מסגרת / לא כלים)
