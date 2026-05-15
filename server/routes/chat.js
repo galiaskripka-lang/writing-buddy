@@ -159,7 +159,7 @@ router.post('/illustrate', async (req, res) => {
 
     const extractAnchors = async (text, existingAnchors) => {
       const systemInstruction = `You are a character designer for a children's illustrated book.
-${existingAnchors ? \`Here is the EXISTING character bible:\\n\${existingAnchors}\\n\\nUpdate it if there are NEW named characters in the story. Keep existing characters exactly the same to maintain consistency.\` : 'Create a permanent visual "ID card" for every named character.'}
+${existingAnchors ? `Here is the EXISTING character bible:\n${existingAnchors}\n\nUpdate it if there are NEW named characters in the story. Keep existing characters exactly the same to maintain consistency.` : 'Create a permanent visual "ID card" for every named character.'}
 
 RULES:
 1. List ONLY named characters (who have an explicit name in the text)
