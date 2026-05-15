@@ -172,7 +172,7 @@ RULES:
 
       const res = await callAI([
         { role: 'system', content: systemInstruction },
-        { role: 'user', content: \`Hebrew story:\\n\${text.slice(-6000)}\\n\\nCreate/Update the character bible:\` }
+        { role: 'user', content: `Hebrew story:\n${text.slice(-6000)}\n\nCreate/Update the character bible:` }
       ], 450, 'llama-3.1-8b-instant');
       return res.trim().replace(/["""'']/g, '');
     };
@@ -195,17 +195,15 @@ RULES:
     const sceneEn = (await callAI([
       {
         role: 'system',
-        content: `Translate this Hebrew children's story paragraph into 2-3 descriptive English sentences for an illustrator.
+        content: `You are an illustrator's assistant. Read the children's story and describe the CURRENT SCENE (the very last events) in 2-3 English sentences.
 
-Include:
-- Action: What are the characters doing right now?
-- Environment: Describe the background clearly and specifically (e.g., "A sunny beach with golden sand and calm blue waves", "A busy school corridor with lockers and colorful posters"). Do NOT use the words "blurry" or "not described".
-- The main characters must be implied to be in the center foreground.
-
-Output English only.`
+CRITICAL INSTRUCTIONS:
+1. Environment/Background: You MUST explicitly describe the current location/background based on the story context. If the current location was established earlier in the story, you must recall it and describe it. (e.g. "Inside a cozy living room with a fireplace", "A dark magical forest with glowing mushrooms").
+2. Action: What are the characters doing right now at the end of the text?
+3. Output ONLY the English description, nothing else.`
       },
-      { role: 'user', content: `"${recentScene.slice(-2000)}"` }
-    ], 150, 'llama-3.1-8b-instant')).trim().replace(/["""'']/g, '');
+      { role: 'user', content: `Story text:\n"${allUserContent.slice(-6000)}"` }
+    ], 200, 'llama-3.1-8b-instant')).trim().replace(/["""'']/g, '');
 
     console.log('[Illustrate] Scene (EN):', sceneEn);
 
@@ -213,19 +211,9 @@ Output English only.`
     const description = sceneEn;
     const visualContext = characterAnchors.replace(/TOTAL_CHARACTERS:\s*\d+\n?/i, '').trim();
 
-    const fullImagePrompt = `Create a child-friendly, vibrant, 3D Pixar-style animation storybook illustration.
-
-SCENE TO DEPICT: "${description}".
-
-VISUAL CONSISTENCY & CONTEXT:
-${visualContext}
-
-STRICT INSTRUCTIONS:
-1. ACCURACY: Ensure every detail mentioned in the "SCENE TO DEPICT" is accurately represented.
-2. CONSISTENCY: Maintain the same character designs, clothing, and environment style as described in the "VISUAL CONSISTENCY & CONTEXT".
-3. STYLE: Use a consistent 3D animation style (like Pixar/Disney) throughout all illustrations for this story.
-4. NO TEXT: Do not include any text, letters, numbers, UI elements, or speech bubbles.
-5. COMPOSITION: High quality, colorful, and engaging for children.`;
+    const fullImagePrompt = `A child-friendly, vibrant, 3D Pixar-style animation storybook illustration of: ${description}.
+CHARACTER DETAILS (MUST FOLLOW STRICTLY): ${visualContext}.
+Ensure all characters match these details exactly. Do not include any text, letters, numbers, UI elements, or speech bubbles. High quality, colorful, and engaging.`;
 
     console.log(`[Illustrate] charCount=${charCount} names="${charNames}"`);
     console.log('[Illustrate] Final DALL-E prompt:\n', fullImagePrompt);
@@ -289,7 +277,7 @@ STRICT INSTRUCTIONS:
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              inputs: fullImagePrompt.slice(0, 400),
+              inputs: fullImagePrompt.slice(0, 4000),
               parameters: {
                 num_inference_steps: 4,
                 guidance_scale: 0.0,
@@ -362,4 +350,8 @@ Rules:
     res.json({ message: assistantMessage });
   } catch (err) {
     console.error('Illustrate error:', err.message);
-    res.status(500).json({ error: 'שגיאה �
+    res.status(500).json({ error: 'שגיאה ביצירת האיור. נסה שוב.' });
+  }
+});
+
+export default router;
