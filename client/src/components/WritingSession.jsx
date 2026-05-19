@@ -90,7 +90,7 @@ export default function WritingSession({ user, token, onLogout }) {
   // החזרת פוקוס לתיבת הטקסט בכל פעם שהטעינה מסתיימת
   useEffect(() => {
     if (!loading && session?.status === 'active') {
-      const timer = setTimeout(() => inputRef.current?.focus(), 100);
+      const timer = setTimeout(() => inputRef.current?.focus(), 300);
       return () => clearTimeout(timer);
     }
   }, [loading]);
