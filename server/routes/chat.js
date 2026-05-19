@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
     const history = historyRes.rows;
     const trimmed = trimHistory([...history, { role: 'user', content: message }]);
     const openaiMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...trimmed.map(m => ({ role: m.role, content: m.content }))];
-    const assistantMessage = await callAI(openaiMessages, 250); // מגביל תגובות לקצר
+    const assistantMessage = await callAI(openaiMessages, 120); // משפט אחד בלבד
     // שומר רק אחרי הצלחה — אם Groq נכשל, לא נשמר כלום ואין כפילויות
     await query('INSERT INTO messages (session_id, role, content) VALUES ($1, $2, $3)', [sessionId, 'user', message]);
     await query('INSERT INTO messages (session_id, role, content) VALUES ($1, $2, $3)', [sessionId, 'assistant', assistantMessage]);
