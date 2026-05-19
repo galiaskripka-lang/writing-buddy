@@ -9,6 +9,7 @@ export default function Dashboard({ user, token, onLogout }) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
   const navigate = useNavigate();
 
   const api = axios.create({
@@ -27,6 +28,21 @@ export default function Dashboard({ user, token, onLogout }) {
       if (err.response?.status === 401) onLogout();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteSession = async (e, sessionId) => {
+    e.stopPropagation();
+    if (!window.confirm('למחוק את הסיפור הזה? לא ניתן לשחזר אותו.')) return;
+    setDeletingId(sessionId);
+    try {
+      await api.delete(`/api/sessions/${sessionId}`);
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch (err) {
+      if (err.response?.status === 401) onLogout();
+      else alert('שגיאה במחיקה, נסי שוב.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -130,35 +146,43 @@ export default function Dashboard({ user, token, onLogout }) {
         ) : (
           <div className="space-y-3">
             {sessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => navigate(`/session/${session.id}`)}
-                className="w-full bg-white rounded-2xl shadow hover:shadow-lg transition-all p-5 flex items-center gap-4 text-right hover:scale-[1.01]"
-              >
-                <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                    session.status === 'completed'
-                      ? 'bg-green-100'
-                      : 'bg-blue-100'
-                  }`}
+              <div key={session.id} className="relative group">
+                <button
+                  onClick={() => navigate(`/session/${session.id}`)}
+                  className="w-full bg-white rounded-2xl shadow hover:shadow-lg transition-all p-5 flex items-center gap-4 text-right hover:scale-[1.01]"
                 >
-                  {session.status === 'completed' ? '✅' : session.type === 'homework' ? '📝' : '🎨'}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-800">{session.title}</h3>
-                  <p className="text-sm text-gray-400">
-                    {session.type === 'homework' ? 'משימה מהמורה' : 'כתיבה חופשית'}
-                    {' · '}
-                    {session.message_count || 0} הודעות
-                  </p>
-                  {session.status === 'completed' && (
-                    <span className="text-xs text-green-600 font-semibold">
-                      ✨ הושלם · לחץ/י לצפייה או פתיחה מחדש
-                    </span>
-                  )}
-                </div>
-                <span className="text-gray-300 text-2xl">←</span>
-              </button>
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                      session.status === 'completed' ? 'bg-green-100' : 'bg-blue-100'
+                    }`}
+                  >
+                    {session.status === 'completed' ? '✅' : session.type === 'homework' ? '📝' : '🎨'}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-800">{session.title}</h3>
+                    <p className="text-sm text-gray-400">
+                      {session.type === 'homework' ? 'משימה מהמורה' : 'כתיבה חופשית'}
+                      {' · '}
+                      {session.message_count || 0} הודעות
+                    </p>
+                    {session.status === 'completed' && (
+                      <span className="text-xs text-green-600 font-semibold">
+                        ✨ הושלם · לחץ/י לצפייה או פתיחה מחדש
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-gray-300 text-2xl">←</span>
+                </button>
+                {/* כפתור מחיקה */}
+                <button
+                  onClick={(e) => deleteSession(e, session.id)}
+                  disabled={deletingId === session.id}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 rounded-xl p-2 text-lg disabled:opacity-50"
+                  title="מחק סיפור"
+                >
+                  {deletingId === session.id ? '⏳' : '🗑️'}
+                </button>
+              </div>
             ))}
           </div>
         )}

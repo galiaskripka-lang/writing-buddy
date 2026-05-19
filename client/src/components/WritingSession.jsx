@@ -25,6 +25,14 @@ const TOOL_MESSAGES = new Set([
   KICKOFF_MESSAGE,
 ]);
 
+// זיהוי כתיבה באנגלית (ג'יבריש)
+function isEnglishText(text) {
+  const letters = (text.match(/[a-zA-Z֐-׿]/g) || []).length;
+  if (letters < 4) return false;
+  const latin = (text.match(/[a-zA-Z]/g) || []).length;
+  return latin / letters > 0.5;
+}
+
 // ספירת משפטים — סוף משפט = נקודה או אנטר בלבד (לא פסיק / ! / ?)
 function countSentences(text) {
   if (!text || !text.trim()) return 0;
@@ -168,6 +176,13 @@ export default function WritingSession({ user, token, onLogout }) {
     e.preventDefault();
     if (!input.trim() || loading) return;
     const userMessage = input.trim();
+
+    // התראה על כתיבה באנגלית
+    if (isEnglishText(userMessage)) {
+      setError('⚠️ נראה שכתבת באנגלית — הקלדי בעברית כדי שהטקסט יופיע נכון!');
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
     setInput('');
     setError('');
     const tempUserMsg = { role: 'user', content: userMessage, id: Date.now() };

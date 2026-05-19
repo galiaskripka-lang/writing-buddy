@@ -133,4 +133,23 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/sessions/:id - מחיקת סשן
+router.delete('/:id', async (req, res) => {
+  try {
+    const sessionResult = await query(
+      'SELECT * FROM sessions WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!sessionResult.rows[0]) {
+      return res.status(404).json({ error: 'סשן לא נמצא' });
+    }
+    await query('DELETE FROM messages WHERE session_id = $1', [req.params.id]);
+    await query('DELETE FROM sessions WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete session error:', err.message);
+    res.status(500).json({ error: 'שגיאה במחיקת הסשן' });
+  }
+});
+
 export default router;
