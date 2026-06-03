@@ -311,7 +311,48 @@ Ensure all characters match these details exactly. Do not include any text, lett
       console.warn('[Illustrate] HF_API_KEY not set — skipping HuggingFace');
     }
 
-    // ─── ניסיון 2: SVG מפורט דרך Groq (fallback אחרון) ──────────────────────────
+    // ─── ניסיון 3: Google Gemini Imagen ─────────────────────────────────────────
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    if (GEMINI_KEY && !dataUrl) {
+      try {
+        console.log('[Illustrate] Trying Gemini Imagen...');
+        const geminiController = new AbortController();
+        const geminiTimer = setTimeout(() => geminiController.abort(), 60000);
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              instances: [{ prompt: fullImagePrompt.slice(0, 4000) }],
+              parameters: { sampleCount: 1, aspectRatio: '16:9' },
+            }),
+            signal: geminiController.signal,
+          }
+        );
+        clearTimeout(geminiTimer);
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const b64 = geminiData?.predictions?.[0]?.bytesBase64Encoded;
+          const mimeType = geminiData?.predictions?.[0]?.mimeType || 'image/png';
+          if (b64) {
+            dataUrl = `data:${mimeType};base64,${b64}`;
+            console.log('[Illustrate] Gemini Imagen OK! size:', Math.round(b64.length / 1024), 'KB');
+          } else {
+            console.warn('[Illustrate] Gemini: no image in response', JSON.stringify(geminiData).slice(0, 200));
+          }
+        } else {
+          const gerr = await geminiRes.text();
+          console.warn('[Illustrate] Gemini failed:', geminiRes.status, gerr.slice(0, 150));
+        }
+      } catch (e) {
+        console.warn('[Illustrate] Gemini error:', e.message);
+      }
+    } else if (!GEMINI_KEY) {
+      console.warn('[Illustrate] GEMINI_API_KEY not set — skipping Gemini');
+    }
+
+    // ─── ניסיון 4: SVG מפורט דרך Groq (fallback אחרון) ──────────────────────────
     if (!dataUrl) {
       console.log('[Illustrate] Falling back to detailed SVG...');
       const svgRaw = await callAI([
