@@ -178,12 +178,18 @@ RULES:
     };
 
     const newAnchors = await extractAnchors(allUserContent, characterAnchors);
-    if (newAnchors !== characterAnchors && newAnchors.includes('CHARACTER "')) {
+    if (newAnchors && newAnchors.includes('CHARACTER "')) {
       characterAnchors = newAnchors;
       await query('UPDATE sessions SET character_anchors = $1 WHERE id = $2', [characterAnchors, sessionId]);
-      console.log('[Illustrate] Character Bible updated/saved:\\n', characterAnchors);
+      console.log('[Illustrate] Character Bible updated/saved:', characterAnchors);
     } else {
-      console.log('[Illustrate] Using existing Character Bible:\\n', characterAnchors);
+      console.log('[Illustrate] Using existing Character Bible:', characterAnchors);
+    }
+
+    // אם עדיין null — fallback כללי
+    if (!characterAnchors) {
+      characterAnchors = 'CHARACTER "hero": young child, friendly appearance, colorful outfit';
+      console.warn('[Illustrate] Character Bible is null — using fallback');
     }
 
     const totalMatch = characterAnchors.match(/TOTAL_CHARACTERS:\s*(\d+)/i);
